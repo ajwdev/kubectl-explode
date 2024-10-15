@@ -20,11 +20,13 @@ var (
 	kubeconfig  string
 	allContexts bool
 	stdout      bool
+	force       bool
 )
 
 func init() {
 	flag.BoolVar(&allContexts, "all", false, "explode all contexts into separate files")
 	flag.BoolVar(&stdout, "stdout", false, "write exploded contexts to stdout instead of files")
+	flag.BoolVarP(&force, "force", "f", false, "force overwriting of destination files. Ignored when --stdout is used")
 }
 
 func main() {
@@ -88,6 +90,16 @@ func main() {
 			}
 		} else {
 			path := filepath.Join(clientcmd.RecommendedConfigDir, strings.ReplaceAll(contextName, "/", "_"))
+
+			if _, err = os.Stat(path); err == nil {
+				if !force {
+					log.Printf("file %q already exists, use --force to overwrite", path)
+					continue
+				}
+			} else if !os.IsNotExist(err) {
+				log.Fatal(fmt.Errorf("unable to stat file %q: %w", path, err))
+			}
+
 			if err := clientcmd.WriteToFile(*cfg, path); err != nil {
 				log.Fatal(err)
 			}
